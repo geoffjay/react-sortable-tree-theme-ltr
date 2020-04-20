@@ -141,7 +141,7 @@ class NodeContentExpander extends Component {
           className={
             node.expanded ? styles.collapseButton : styles.expandButton
           }
-          style={{ position: 'absolute', right: -0.75 * scaffoldBlockPxWidth }}
+          style={{ position: 'absolute', right: -scaffoldBlockPxWidth }}
           onClick={() =>
             toggleChildrenVisibility({
               node,
