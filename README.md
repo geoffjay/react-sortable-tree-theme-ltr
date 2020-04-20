@@ -1,19 +1,23 @@
-# React Sortable Tree Full Node Drag Theme
-<img alt="theme appearance" src="https://user-images.githubusercontent.com/4413963/33521792-61dc2c50-d81f-11e7-8ab1-359661a11ca4.png" width="500">
+# React Sortable Tree LTR Theme
+
+[WIP] Don't use this
 
 ## Features
-* No drag handles. You can click anywhere on a node to drag it.
+
+* A tree that opens to the right, only to the right, doesn't support `rtl` mode
 
 ## Usage
 
+Don't.
+
 ```sh
-npm install --save react-sortable-tree-theme-full-node-drag
+npm install --save react-sortable-tree-theme-ltr
 ```
 
 ```jsx
 import React, { Component } from 'react';
 import SortableTree from 'react-sortable-tree';
-import FileExplorerTheme from 'react-sortable-tree-theme-full-node-drag';
+import LtrTheme from 'react-sortable-tree-theme-ltr';
 
 export default class Tree extends Component {
   constructor(props) {
@@ -30,7 +34,7 @@ export default class Tree extends Component {
         <SortableTree
           treeData={this.state.treeData}
           onChange={treeData => this.setState({ treeData })}
-          theme={FileExplorerTheme}
+          theme={LtrTheme}
         />
       </div>
     );
