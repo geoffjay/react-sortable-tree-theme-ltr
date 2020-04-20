@@ -29,7 +29,10 @@ class App extends Component {
           { title: 'Child 4 - 2', subtitle: 'Subtitle for child' },
           { title: 'Child 4 - 3', subtitle: 'Subtitle for child' },
           { title: 'Child 4 - 4', subtitle: 'Subtitle for child' },
-          { title: 'Child 4 - 5', subtitle: 'Subtitle for child' }
+          { title: 'Child 4 - 5', subtitle: 'Subtitle for child', children: [
+            { title: 'Child 4 - 5 - 1', children: [ { title: 'Moar levels deep child' } ] },
+            { title: 'Child 4 - 5 - 2 - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+          ]}
         ]},
       ],
     };

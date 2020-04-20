@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { getNodeAtPath } from 'react-sortable-tree';
+
+import NodeContentExpander from './node-content-expander';
 
 import styles from './node-content-renderer.scss';
 
@@ -16,7 +17,7 @@ function isDescendant(older, younger) {
 }
 
 // Drag and drop content
-function DnDContent({
+function dndContent({
   buttons,
   canDrag,
   canDrop,
@@ -98,7 +99,6 @@ function DnDContent({
   );
 }
 
-// eslint-disable-next-line react/prefer-stateless-function
 class CustomThemeNodeContentRenderer extends Component {
   constructor(props) {
     super(props);
@@ -107,7 +107,9 @@ class CustomThemeNodeContentRenderer extends Component {
 
     this.state = {
       containerRect: defaultRect,
-      nodeRect: defaultRect
+      nodeRect: defaultRect,
+      // XXX: testing something
+      isLoaded: false,
     };
 
     this.containerRef = React.createRef();
@@ -116,6 +118,7 @@ class CustomThemeNodeContentRenderer extends Component {
   }
 
   componentDidMount() {
+    // Polling for dimensions here because I couldn't find a better way to do it
     this.getRectsInterval = setInterval(() => {
       this.setState(state => {
         const containerRect = this.containerRef.current.getBoundingClientRect();
@@ -125,7 +128,10 @@ class CustomThemeNodeContentRenderer extends Component {
         const nodeRect = this.nodeRef.current.getBoundingClientRect();
         return JSON.stringify(nodeRect) === JSON.stringify(state.nodeRect) ? null : { nodeRect };
       });
+      this.setState({ isLoaded: true });
     }, 10);
+
+    this.height = this.state.nodeRect.height;
   }
 
   componentWillUnmount() {
@@ -163,16 +169,28 @@ class CustomThemeNodeContentRenderer extends Component {
       treeId, // Not needed, but preserved for other renderers
       isOver, // Not needed, but preserved for other renderers
       parentNode, // Needed for dndManager
-      zoom,
+      parentBoundingBox,
       ...otherProps
     } = this.props;
 
     // Calculate position and size information
-    const width = `${this.state.nodeRect.width}px`
-    const left = `${this.state.containerRect.left +
-      this.state.containerRect.width / 2 -
-      this.state.nodeRect.width / 2 
-      }px`;
+    const { left, top, width, height } = this.state.nodeRect;
+    // const left = this.state.containerRect.left + (this.state.containerRect.width / 2 - this.state.nodeRect.width / 2);
+
+    // Attach to children?
+    const boundingBox = {
+      left,
+      top,
+      width,
+      height,
+    }
+
+    node.boundingBox = boundingBox;
+
+    // FIXME: use the real height from the component, this is just for testing
+    //  need to attach real height, should just be from bounding box
+    // node.height = 62 + Math.random() * 50;
+    node.height = 62;
 
     // Custom node information
     const nodeTitle = title || node.title;
@@ -181,7 +199,7 @@ class CustomThemeNodeContentRenderer extends Component {
     const isLandingPadActive = !didDrop && isDragging;
 
     // DnD content
-    const nodeContent = DnDContent({
+    const nodeContent = dndContent({
       buttons,
       canDrag,
       canDrop,
@@ -197,69 +215,67 @@ class CustomThemeNodeContentRenderer extends Component {
       treeIndex,
       nodeTitle,
       nodeSubtitle,
-    })
-
-    const pos = path.indexOf(parseInt(treeIndex, 10));
-    const hasParent = path.length > 1
-    const parentPath = path.length >= 1 ? path.slice(0, pos) : null;
-    const parentNodeFromPath = getNodeAtPath({
-      treeData,
-      path: path.slice(0, pos),
-      getNodeKey: ({ treeIndex: number }) => {
-          return number;
-      },
-      ignoreCollapsed: true
     });
 
-    console.log(treeData)
-    console.log(node);
-    console.log(`node left: ${left}`);
-    console.log(`node width: ${width}`);
-    console.log(`node index: ${treeIndex}`);
-    console.log(`node path: ${path}`);
-    console.log(`node position: ${pos}`);
-    console.log(`node has parent: ${hasParent}`)
-    console.log(`node parent path: ${parentPath}`);
-    console.log(parentNodeFromPath);
+    // TODO: either use parentBoundingBox directly or add it to node
+    if (node.parentBoundingBox) {
+      boundingBox.left = node.parentBoundingBox.left + node.parentBoundingBox.width;
+    }
+
+    const { isLoaded } = this.state;
+
+    if (node.children) {
+      node.children.forEach((child, index) => {
+        // console.log(`node child: ${child}`);
+        node.children[index].parentBoundingBox = boundingBox;
+      });
+    }
+
+    let posX = 0;
+    let posY = 0;
+    if (node.boundingBox && node.parentBoundingBox) {
+      posX = node.parentBoundingBox.left + node.parentBoundingBox.width;
+      if (path.length === 2) {
+        posX -= 14;
+      } else if (path.length > 2) {
+        posX += (path.length - 1) * scaffoldBlockPxWidth / 2;
+        // posX -= 14;
+      }
+
+      if (node.parentBoundingBox.height) {
+        posY = -node.parentBoundingBox.height * (path.length - 1);
+      }
+    }
 
     return (
       <div
         ref={this.containerRef}
         style={
           path.length === 1 ?
-          { height: '100%', zoom } :
-          { height: '100%', zoom, position: 'absolute', right: -1.0 * path.length * 400 - (0.1 * scaffoldBlockPxWidth), top: -62 * (path.length - 1) }  // XXX: couldn't explain why this is 0.1 if I had to
+          { height: '100%' } :
+          {
+            height: '100%',
+            position: 'absolute',
+            left: posX,
+            top: posY,
+          }
         }
         {...otherProps}
       >
         {toggleChildrenVisibility &&
           node.children &&
           (node.children.length > 0 || typeof node.children === 'function') && (
-            <div>
-              <button
-                type="button"
-                aria-label={node.expanded ? 'Collapse' : 'Expand'}
-                className={
-                  node.expanded ? styles.collapseButton : styles.expandButton
-                }
-                style={{ right: -0.75 * scaffoldBlockPxWidth }}
-                onClick={() =>
-                  toggleChildrenVisibility({
-                    node,
-                    path,
-                    treeIndex,
-                  })
-                }
-              />
-
-              {node.expanded &&
-                !isDragging && (
-                  <div
-                    style={{ width: scaffoldBlockPxWidth }}
-                    className={styles.lineChildren}
-                  />
-                )}
-            </div>
+            <NodeContentExpander
+              node={node}
+              scaffoldBlockPxWidth={scaffoldBlockPxWidth}
+              width={width}
+              path={path}
+              treeIndex={treeIndex}
+              isDragging={isDragging}
+              isLoaded={node && isLoaded}
+              parentBoundingBox={boundingBox}
+              toggleChildrenVisibility={toggleChildrenVisibility}
+            />
           )}
 
         <div
@@ -295,7 +311,8 @@ CustomThemeNodeContentRenderer.defaultProps = {
   swapLength: null,
   title: null,
   toggleChildrenVisibility: null,
-  zoom: 1,
+  height: 62,
+  parentBoundingBox: null,
 };
 
 CustomThemeNodeContentRenderer.propTypes = {
@@ -313,6 +330,12 @@ CustomThemeNodeContentRenderer.propTypes = {
     listIndex: PropTypes.number,
     subtitle: PropTypes.string,
     title: PropTypes.string,
+    boundingBox: PropTypes.shape({
+      left: PropTypes.number,
+      width: PropTypes.number,
+      top: PropTypes.number,
+      height: PropTypes.number,
+    }),
   }).isRequired,
   path: PropTypes.arrayOf(
     PropTypes.oneOfType([PropTypes.string, PropTypes.number])
@@ -343,8 +366,19 @@ CustomThemeNodeContentRenderer.propTypes = {
   canDrop: PropTypes.bool,
   isOver: PropTypes.bool.isRequired,
 
-  // Zooming test
-  zoom: PropTypes.number,
+  // Test
+  height: PropTypes.number,
+  parentBoundingBox: PropTypes.shape({
+    left: PropTypes.number,
+    width: PropTypes.number,
+    top: PropTypes.number,
+    height: PropTypes.number,
+  }),
 };
+
+// Inform the tree of the node's current height
+CustomThemeNodeContentRenderer.rowHeight = ({ ...props }) =>
+   props.node.height ? props.node.height : 62
+;
 
 export default CustomThemeNodeContentRenderer;
